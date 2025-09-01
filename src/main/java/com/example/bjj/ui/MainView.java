@@ -332,53 +332,90 @@ public class MainView extends VerticalLayout {
   }
 
   private void addCard(Technique t){
-    var card = new Div(); card.addClassName("bjj-card");
+  var card = new Div(); 
+  card.addClassName("bjj-card");
 
-    var learnedBtn = new Button();
-    learnedBtn.addClassName("bjj-learned-btn");
-    setLearnedIcon(learnedBtn, learned.contains(t.getId()));
-    learnedBtn.addClickListener(e -> {
+  // Guard against null Technique or null id
+  if (t == null) return;
+
+  var learnedBtn = new Button();
+  learnedBtn.addClassName("bjj-learned-btn");
+  setLearnedIcon(learnedBtn, t.getId()!=null && learned.contains(t.getId()));
+  learnedBtn.addClickListener(e -> {
+    if (t.getId() != null) {
       toggleLearned(t.getId());
       setLearnedIcon(learnedBtn, learned.contains(t.getId()));
-      if (learned.contains(t.getId())) card.addClassName("is-learned"); else card.removeClassName("is-learned");
+      if (learned.contains(t.getId())) card.addClassName("is-learned"); 
+      else card.removeClassName("is-learned");
       if (!consentGiven) toast("Progress kept for this session only (declined cookies).", false);
-    });
-
-    var thumb = new Div(); thumb.addClassName("bjj-thumb");
-    if (t.getThumbnailUrl()!=null && !t.getThumbnailUrl().isBlank()){
-      thumb.getStyle().set("backgroundImage","url(" + t.getThumbnailUrl() + ")");
-      thumb.getStyle().set("backgroundSize","cover");
-      thumb.getStyle().set("backgroundPosition","center");
-    } else thumb.setText("No thumbnail");
-
-    var body = new Div(); body.addClassName("bjj-body");
-    var title = new H3(t.getName()); title.addClassName("bjj-title2");
-    body.add(title);
-
-    var meta = new Div(); meta.addClassName("bjj-meta");
-    meta.add(badge(formatEnum(t.getPosition().name()), true));
-    meta.add(badge(formatEnum(t.getCategory().name()), true));
-    meta.add(beltBadge(t.getBelt()));
-    meta.add(badge(t.getRuleset()==Ruleset.BOTH ? "Both" : (t.getRuleset()==Ruleset.GI?"Gi":"No-Gi"), true));
-    body.add(meta);
-
-    var desc = new Paragraph(t.getDescription()); desc.addClassName("bjj-desc");
-    body.add(desc);
-
-    var actions = new Div(); actions.addClassName("bjj-actions");
-    actions.add(learnedBtn);
-    if (t.getVideoUrl()!=null && !t.getVideoUrl().isBlank()){
-      var a = new Anchor(t.getVideoUrl(), "Watch video");
-      a.setTarget("_blank"); a.getElement().setAttribute("rel","noopener noreferrer");
-      a.addClassName("bjj-btn"); actions.add(a);
     }
-    body.add(actions);
+  });
 
-    if (learned.contains(t.getId())) card.addClassName("is-learned");
-
-    card.add(thumb, body);
-    cards.add(card);
+  var thumb = new Div(); 
+  thumb.addClassName("bjj-thumb");
+  if (t.getThumbnailUrl()!=null && !t.getThumbnailUrl().isBlank()){
+    thumb.getStyle().set("backgroundImage","url(" + t.getThumbnailUrl() + ")");
+    thumb.getStyle().set("backgroundSize","cover");
+    thumb.getStyle().set("backgroundPosition","center");
+  } else {
+    thumb.setText("No thumbnail");
   }
+
+  var body = new Div(); 
+  body.addClassName("bjj-body");
+
+  var titleText = (t.getName()==null || t.getName().isBlank()) ? "Untitled technique" : t.getName();
+  var title = new H3(titleText); 
+  title.addClassName("bjj-title2");
+  body.add(title);
+
+  var meta = new Div(); 
+  meta.addClassName("bjj-meta");
+
+  if (t.getPosition() != null) {
+    meta.add(badge(formatEnum(t.getPosition().name()), true));
+  }
+  if (t.getCategory() != null) {
+    meta.add(badge(formatEnum(t.getCategory().name()), true));
+  }
+  if (t.getBelt() != null) {
+    meta.add(beltBadge(t.getBelt()));
+  }
+  if (t.getRuleset() != null) {
+    String rs = switch (t.getRuleset()) {
+      case BOTH -> "Both";
+      case GI -> "Gi";
+      case NOGI -> "No-Gi";
+    };
+    meta.add(badge(rs, true));
+  }
+  body.add(meta);
+
+  var descText = (t.getDescription()==null || t.getDescription().isBlank()) ? "—" : t.getDescription();
+  var desc = new Paragraph(descText); 
+  desc.addClassName("bjj-desc");
+  body.add(desc);
+
+  var actions = new Div(); 
+  actions.addClassName("bjj-actions");
+  actions.add(learnedBtn);
+  if (t.getVideoUrl()!=null && !t.getVideoUrl().isBlank()){
+    var a = new Anchor(t.getVideoUrl(), "Watch video");
+    a.setTarget("_blank"); 
+    a.getElement().setAttribute("rel","noopener noreferrer");
+    a.addClassName("bjj-btn"); 
+    actions.add(a);
+  }
+  body.add(actions);
+
+  if (t.getId()!=null && learned.contains(t.getId())) {
+    card.addClassName("is-learned");
+  }
+
+  card.add(thumb, body);
+  cards.add(card);
+}
+
 
   private void setLearnedIcon(Button btn, boolean isLearned){
     btn.setIcon(isLearned ? VaadinIcon.CHECK_SQUARE.create() : VaadinIcon.SQUARE_SHADOW.create());
@@ -488,7 +525,7 @@ public class MainView extends VerticalLayout {
     position.clear();
     categories.clear();
     belt.clear();
-    context.setValue("Any");
+    context.setValue("Both");
     sort.setValue("relevance");
     search.clear();
     chipsWrap.getChildren().forEach(c -> c.getElement().getClassList().remove("active"));

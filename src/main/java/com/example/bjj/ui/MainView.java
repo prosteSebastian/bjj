@@ -243,6 +243,7 @@ public class MainView extends VerticalLayout {
 
     var right = new HorizontalLayout(learnMore, accept, decline);
     right.setPadding(false); right.setSpacing(true);
+    right.addClassName("buttons");  
     right.getStyle().set("marginLeft","auto");
 
     cookieBar.add(text, right);
@@ -453,24 +454,79 @@ public class MainView extends VerticalLayout {
   }
 
   private void injectMinimalCss(){
-    UI.getCurrent().getPage().executeJs("""
-      (function(){
-        const css = `
-          .bjj-card.is-learned { outline: 2px solid #2e824a; box-shadow: 0 0 0 2px #2e824a22 inset; }
-          .bjj-learned-btn { margin-right: 8px; }
-          .bjj-cookiebar {
-            position: fixed; left: 16px; right: 16px; bottom: 16px;
-            z-index: 2000; display: flex; align-items: center;
-            gap: 12px; padding: 12px 16px;
-            background: #0b1220; border: 1px solid #2b3b56; border-radius: 10px;
-            box-shadow: 0 8px 30px #0006;
-          }
-          .bjj-context-group vaadin-radio-button::part(label) { color: #c0d0e6; }
-        `;
-        const s=document.createElement('style'); s.textContent=css; document.head.appendChild(s);
-      })();
-    """);
-  }
+  UI.getCurrent().getPage().executeJs("""
+    (function(){
+      const css = `
+        :root { --pad: 16px; }
+
+        /* Cards */
+        .bjj-card.is-learned { outline: 2px solid #2e824a; box-shadow: 0 0 0 2px #2e824a22 inset; }
+        .bjj-learned-btn { margin-right: 8px; }
+
+        /* Cookie bar */
+        .bjj-cookiebar {
+          position: fixed; left: var(--pad); right: var(--pad);
+          bottom: calc(12px + env(safe-area-inset-bottom, 0));
+          z-index: 2000; display: flex; align-items: center; gap: 12px;
+          padding: 12px 16px; background: #0b1220; border: 1px solid #2b3b56; border-radius: 12px;
+          box-shadow: 0 8px 30px #0006;
+        }
+        .bjj-cookiebar a { color: #7fb4ff; text-decoration: none; }
+        .bjj-cookiebar vaadin-button { --lumo-border-radius-m: 10px; }
+
+        /* Filter chips */
+        .bjj-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .bjj-chip { border-radius: 999px; }
+        .bjj-chip.active { outline: 2px solid #37527a; background: #0c1422; }
+
+        /* Results header tweaks */
+        .bjj-results-header { align-items: center; gap: 8px; }
+        .bjj-clear-btn { margin-left: auto; }
+
+        /* RADIO: better label color */
+        .bjj-context-group vaadin-radio-button::part(label) { color: #c0d0e6; }
+
+        /* --------- MOBILE --------- */
+        @media (max-width: 520px){
+          .bjj-header { position: sticky; top: 0; z-index: 1000;
+                        background: #0a1020; border-bottom: 1px solid #14223a; }
+          .bjj-toolbar { flex-wrap: wrap; gap: 8px; }
+          .bjj-search { flex: 1 1 100%; }
+          .bjj-search .icon { margin-right: 6px; }
+
+          /* Panels stack and reduce inner paddings */
+          .bjj-panel { padding: 12px !important; border-radius: 12px; }
+          .bjj-container { padding: 12px !important; }
+
+          /* Filters: keep controls full width */
+          .bjj-filters vaadin-select,
+          .bjj-filters vaadin-multi-select-combo-box,
+          .bjj-filters vaadin-text-field { width: 100% !important; }
+
+          /* Chips: avoid overflowing the viewport */
+          .bjj-chips { gap: 6px; }
+          .bjj-chips { margin-right: -8px; padding-right: 8px; overflow-x: auto; }
+          .bjj-chip { white-space: nowrap; }
+
+          /* Radio group wraps nicely */
+          .bjj-context-group { display: flex; flex-wrap: wrap; gap: 10px; }
+
+          /* Cards tighten a bit */
+          .bjj-cards .bjj-card { border-radius: 12px; }
+          .bjj-body .bjj-meta { row-gap: 6px; }
+
+          /* Cookie bar becomes column, buttons fill width */
+          .bjj-cookiebar { flex-direction: column; align-items: stretch; gap: 10px; }
+          .bjj-cookiebar p { margin: 0; font-size: 14px; line-height: 1.3; }
+          .bjj-cookiebar .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+          .bjj-cookiebar .buttons vaadin-button { width: 100%; }
+        }
+      `;
+      const s=document.createElement('style'); s.textContent=css; document.head.appendChild(s);
+    })();
+  """);
+}
+
 
   private Div beltBadge(Belt b){
     var s = badge(capitalize(formatEnum(b.name())) + " belt", true);

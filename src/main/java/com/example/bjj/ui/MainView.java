@@ -2,10 +2,11 @@ package com.example.bjj.ui;
 
 import com.example.bjj.model.*;
 import com.example.bjj.service.TechniqueService;
+import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
@@ -13,18 +14,20 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Route("")
 @PageTitle("BJJ Techniques • Positions → Submissions / Escapes / Sweeps / Passes")
@@ -33,12 +36,11 @@ public class MainView extends VerticalLayout {
   private final TechniqueService service;
 
   // Filters / state
-  private final ComboBox<Position> position = new ComboBox<>();
+  private final Select<Position> position = new Select<>();
   private final MultiSelectComboBox<Category> categories = new MultiSelectComboBox<>();
-  private final ComboBox<Belt> belt = new ComboBox<>();
-  private final Checkbox giOnly = new Checkbox("Gi only");
-  private final Checkbox nogiOnly = new Checkbox("No-Gi only");
-  private final ComboBox<String> sort = new ComboBox<>();
+  private final Select<Belt> belt = new Select<>();
+  private final RadioButtonGroup<String> context = new RadioButtonGroup<>();
+  private final ComboBoxLike sort = new ComboBoxLike(); // lightweight non-editable select for sort
   private final TextField search = new TextField();
 
   // DOM containers
@@ -47,7 +49,13 @@ public class MainView extends VerticalLayout {
   private final Div chipsWrap = new Div();
   private final Div container = new Div();
 
-  @Autowired
+  // Learned + consent (kept from previous version)
+  private final Set<Long> learned = new HashSet<>();
+  private static final String LEARNED_COOKIE = "bjjLearned";
+  private static final String CONSENT_COOKIE = "bjjConsent";
+  private boolean consentGiven = false;
+  private final Div cookieBar = new Div();
+
   public MainView(TechniqueService service){
     this.service = service;
 
@@ -56,7 +64,7 @@ public class MainView extends VerticalLayout {
     setSizeFull();
     addClassName("bjj-root");
 
-    // Header (sticky)
+    /* ---------- Header ---------- */
     var header = new Div();
     header.addClassName("bjj-header");
 
@@ -64,10 +72,8 @@ public class MainView extends VerticalLayout {
     left.addClassName("bjj-brand");
     left.setPadding(false);
     left.setSpacing(true);
-    var cube = new Div();
-    cube.addClassName("bjj-cube");
-    var title = new H1("BJJ Tech Map");
-    title.addClassName("bjj-title");
+    var cube = new Div(); cube.addClassName("bjj-cube");
+    var title = new H1("BJJ Tech Map"); title.addClassName("bjj-title");
     left.add(cube, title);
 
     var toolbar = new HorizontalLayout();
@@ -76,63 +82,53 @@ public class MainView extends VerticalLayout {
     toolbar.setSpacing(true);
 
     // Search
-    var searchWrap = new Div();
-    searchWrap.addClassName("bjj-search");
-    var searchIcon = new Icon(VaadinIcon.SEARCH);
-    searchIcon.addClassName("icon");
+    var searchWrap = new Div(); searchWrap.addClassName("bjj-search");
+    var searchIcon = VaadinIcon.SEARCH.create(); searchIcon.addClassName("icon");
     search.setPlaceholder("Search technique, grip, tag…");
     search.getElement().setAttribute("aria-label","Search");
     searchWrap.add(searchIcon, search);
 
-    // Sort
+    // Sort (simple select-like)
     sort.setItems("relevance","alpha","belt");
     sort.setValue("relevance");
     sort.setWidth("180px");
 
-    // Compact toggle (adds class to container)
+    // Compact toggle
     var compactBtn = new Button("Compact", e -> {
-      if (container.getClassNames().contains("compact")) {
-        container.removeClassName("compact");
-      } else {
-        container.addClassName("compact");
-      }
+      if (container.getClassNames().contains("compact")) container.removeClassName("compact");
+      else container.addClassName("compact");
     });
     compactBtn.addClassName("bjj-compact-btn");
 
     toolbar.add(searchWrap, sort, compactBtn);
-
     header.add(left, toolbar);
     add(header);
 
-    // Sticky header shadow on scroll (adds 'scrolled' to body)
     UI.getCurrent().getPage().executeJs(
-      "window.addEventListener('scroll',()=>{" +
-        "document.body.classList.toggle('scrolled', window.scrollY>0);" +
-      "});"
+      "window.addEventListener('scroll',()=>{document.body.classList.toggle('scrolled', window.scrollY>0);});"
     );
 
-    // Main layout (sidebar + results)
+    /* ---------- Main grid ---------- */
     container.addClassName("bjj-container");
-    var grid = new Div();
-    grid.addClassName("bjj-grid");
+    var grid = new Div(); grid.addClassName("bjj-grid");
     container.add(grid);
     add(container);
     expand(container);
 
     /* ---------- Sidebar (filters) ---------- */
-
     var sidebar = new Div();
     sidebar.addClassName("bjj-panel");
     sidebar.addClassName("bjj-filters");
 
-    // Position
+    // Position (Select = non-editable)
     sidebar.add(h2("Position"));
-    position.setPlaceholder("All positions");
-    position.setItems(Position.values());
     position.setWidthFull();
+    position.setItems(Position.values());
+    position.setPlaceholder("All positions");
+    position.setEmptySelectionAllowed(true);
     sidebar.add(position);
 
-    // Category chips (+ Reset that looks different)
+    // Category chips
     sidebar.add(h2("Category"));
     chipsWrap.addClassName("bjj-chips");
     for (var c : Category.values()){
@@ -156,65 +152,144 @@ public class MainView extends VerticalLayout {
     chipsWrap.add(resetBtn);
     sidebar.add(chipsWrap);
 
-    // Context
+    // Context → Radio: Any / Gi / No-Gi / Both
     sidebar.add(h2("Context"));
-    sidebar.add(nogiOnly, giOnly);
+    context.setItems("Gi", "No-Gi", "Both");
+    //context.setValue("Any");
+    context.addClassName("bjj-context-group");
+    sidebar.add(context);
 
-    // Belt
+    // Belt (Select with colored items)
     sidebar.add(h2("Belt level"));
-    belt.setPlaceholder("All");
-    belt.setItems(Belt.values());
     belt.setWidthFull();
+    belt.setItems(Belt.values());
+    belt.setPlaceholder("All");
+    belt.setEmptySelectionAllowed(true);
+    belt.setRenderer(new ComponentRenderer<>(b -> {
+      var row = new Div();
+      row.getStyle().set("display","flex").set("alignItems","center").set("gap","8px");
+      var dot = new Div();
+      dot.getStyle().set("width","10px").set("height","10px").set("borderRadius","50%")
+          .set("background", beltHex(b));
+      var label = new Div(new Text(capitalize(formatEnum(b.name()))));
+      row.add(dot, label);
+      return row;
+    }));
     sidebar.add(belt);
 
     /* ---------- Results panel ---------- */
-
-    var results = new Div();
-    results.addClassName("bjj-panel");
-
-    var headerRow = new HorizontalLayout();
-    headerRow.addClassName("bjj-results-header");
+    var results = new Div(); results.addClassName("bjj-panel");
+    var headerRow = new HorizontalLayout(); headerRow.addClassName("bjj-results-header");
     count.addClassName("bjj-count");
-    var clearBtn = new Button("Clear filters", e -> clearFilters());
-    clearBtn.addClassName("bjj-clear-btn");
-    headerRow.setWidthFull();
-    headerRow.add(count);
-    headerRow.add(clearBtn);
-    headerRow.expand(count);
-
+    var clearBtn = new Button("Clear filters", e -> clearFilters()); clearBtn.addClassName("bjj-clear-btn");
+    headerRow.setWidthFull(); headerRow.add(count); headerRow.add(clearBtn); headerRow.expand(count);
     cards.addClassName("bjj-cards");
     results.add(headerRow, cards);
 
-    // Append to grid
     grid.add(sidebar, results);
 
-    // Hidden holder for categories (state only)
+    // Hidden state holder
     categories.setItems(Category.values());
 
     /* ---------- Events ---------- */
     position.addValueChangeListener(e -> refresh());
     belt.addValueChangeListener(e -> refresh());
-    giOnly.addValueChangeListener(e -> { if (giOnly.getValue()) nogiOnly.setValue(false); refresh(); });
-    nogiOnly.addValueChangeListener(e -> { if (nogiOnly.getValue()) giOnly.setValue(false); refresh(); });
+    context.addValueChangeListener(e -> refresh());
     sort.addValueChangeListener(e -> refresh());
     search.addValueChangeListener(e -> refresh());
 
-    /* ---------- Initial load ---------- */
+    /* ---------- Cookie bar (from previous step) ---------- */
+    buildCookieBar();
+
     refresh();
   }
 
-  /* ---------- Rendering ---------- */
+  @Override
+  protected void onAttach(AttachEvent attachEvent) {
+    super.onAttach(attachEvent);
+    injectMinimalCss();
+    checkConsentAndInit();
+  }
+
+  /* ---------------- Cookie consent helpers (unchanged logic) ---------------- */
+
+  private void buildCookieBar(){
+    cookieBar.addClassName("bjj-cookiebar");
+    cookieBar.getStyle().set("display", "none");
+
+    var text = new Paragraph(
+      "We use a small cookie to remember techniques you mark as “learned”. No trackers."
+    );
+    text.getStyle().set("margin","0");
+
+    var learnMore = new Anchor("/cookies", "Learn more");
+    learnMore.getElement().setAttribute("target","_self");
+    learnMore.getStyle().set("marginRight","12px");
+
+    var accept = new Button("Accept", e -> {
+      consentGiven = true;
+      setCookie(CONSENT_COOKIE, "1", 60*60*24*365*2);
+      cookieBar.getStyle().set("display","none");
+      saveLearnedCookie();
+      toast("Thanks! Your progress will be kept on this device.", true);
+    });
+    var decline = new Button("Decline", e -> {
+      consentGiven = false;
+      setCookie(CONSENT_COOKIE, "0", 60*60*24*365*2);
+      cookieBar.getStyle().set("display","none");
+      setCookie(LEARNED_COOKIE, "", 0);
+      toast("Okay — progress kept only for this session.", false);
+    });
+
+    var right = new HorizontalLayout(learnMore, accept, decline);
+    right.setPadding(false); right.setSpacing(true);
+    right.getStyle().set("marginLeft","auto");
+
+    cookieBar.add(text, right);
+    add(cookieBar);
+  }
+
+  private void checkConsentAndInit(){
+    UI.getCurrent().getPage().executeJs(
+      "const m=document.cookie.match(/(?:^|; )"+CONSENT_COOKIE+"=([^;]*)/); return m?decodeURIComponent(m[1]):'';")
+      .then(String.class, val -> {
+        consentGiven = "1".equals(val);
+        if (val == null || val.isBlank()){
+          cookieBar.getStyle().set("display","flex");
+        }
+        if (consentGiven) loadLearnedFromCookie();
+      });
+  }
+
+  private void setCookie(String key, String value, int maxAgeSeconds){
+    UI.getCurrent().getPage().executeJs(
+      "document.cookie = $0 + '=' + encodeURIComponent($1) + '; path=/; max-age=' + $2",
+      key, value, maxAgeSeconds
+    );
+  }
+
+  private void toast(String msg, boolean success){
+    var n = Notification.show(msg, 2500, Notification.Position.BOTTOM_CENTER);
+    if (success) n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+    else n.addThemeVariants(NotificationVariant.LUMO_CONTRAST);
+  }
+
+  /* ---------------- Rendering ---------------- */
 
   private void refresh(){
     Position p = position.getValue();
     Set<Category> cats = categories.getSelectedItems();
     Belt max = belt.getValue();
-    Boolean gi = giOnly.getValue();
-    Boolean nogi = nogiOnly.getValue();
+
+    boolean giOnly = false, nogiOnly = false, bothOnly = false;
+    String ctx = context.getValue();
+    if ("Gi".equals(ctx)) giOnly = true;
+    else if ("No-Gi".equals(ctx)) nogiOnly = true;
+    else if ("Both".equals(ctx)) bothOnly = true;
+
     String q = Optional.ofNullable(search.getValue()).orElse("");
     String s = sort.getValue();
 
-    // If no categories are selected, show nothing
     if (cats == null || cats.isEmpty()) {
       count.setText("0 techniques");
       cards.removeAll();
@@ -229,7 +304,15 @@ public class MainView extends VerticalLayout {
       return;
     }
 
-    var list = service.find(p, cats, max, gi, nogi, q, s);
+    var list = service.find(p, cats, max, giOnly, nogiOnly, q, s);
+
+    // If “Both” selected, keep only BOTH ruleset
+    if (bothOnly) {
+      list = list.stream()
+        .filter(t -> t.getRuleset() == Ruleset.BOTH)
+        .collect(Collectors.toList());
+    }
+
     count.setText(list.size() + " techniques");
 
     cards.removeAll();
@@ -251,46 +334,125 @@ public class MainView extends VerticalLayout {
   private void addCard(Technique t){
     var card = new Div(); card.addClassName("bjj-card");
 
+    var learnedBtn = new Button();
+    learnedBtn.addClassName("bjj-learned-btn");
+    setLearnedIcon(learnedBtn, learned.contains(t.getId()));
+    learnedBtn.addClickListener(e -> {
+      toggleLearned(t.getId());
+      setLearnedIcon(learnedBtn, learned.contains(t.getId()));
+      if (learned.contains(t.getId())) card.addClassName("is-learned"); else card.removeClassName("is-learned");
+      if (!consentGiven) toast("Progress kept for this session only (declined cookies).", false);
+    });
+
     var thumb = new Div(); thumb.addClassName("bjj-thumb");
-    if (t.getThumbnailUrl() != null && !t.getThumbnailUrl().isBlank()){
+    if (t.getThumbnailUrl()!=null && !t.getThumbnailUrl().isBlank()){
       thumb.getStyle().set("backgroundImage","url(" + t.getThumbnailUrl() + ")");
       thumb.getStyle().set("backgroundSize","cover");
       thumb.getStyle().set("backgroundPosition","center");
-    } else {
-      thumb.setText("No thumbnail");
-    }
+    } else thumb.setText("No thumbnail");
 
     var body = new Div(); body.addClassName("bjj-body");
-    var title = new H3(Optional.ofNullable(t.getName()).orElse("Untitled")); title.addClassName("bjj-title2");
+    var title = new H3(t.getName()); title.addClassName("bjj-title2");
     body.add(title);
 
     var meta = new Div(); meta.addClassName("bjj-meta");
-    if (t.getPosition()!=null) meta.add(badge(formatEnum(t.getPosition().name()), true));
-    if (t.getCategory()!=null) meta.add(badge(formatEnum(t.getCategory().name()), true));
-    if (t.getBelt()!=null)     meta.add(badge(formatEnum(t.getBelt().name()) + " belt", true));
-    if (t.getRuleset()!=null)  meta.add(badge(
-      t.getRuleset()==Ruleset.BOTH ? "Both" :
-      (t.getRuleset()==Ruleset.GI ? "Gi" :
-      (t.getRuleset()==Ruleset.NOGI ? "No-Gi" : formatEnum(t.getRuleset().name()))), true));
+    meta.add(badge(formatEnum(t.getPosition().name()), true));
+    meta.add(badge(formatEnum(t.getCategory().name()), true));
+    meta.add(beltBadge(t.getBelt()));
+    meta.add(badge(t.getRuleset()==Ruleset.BOTH ? "Both" : (t.getRuleset()==Ruleset.GI?"Gi":"No-Gi"), true));
     body.add(meta);
 
-    var desc = new Paragraph(Optional.ofNullable(t.getDescription()).orElse(""));
-    desc.addClassName("bjj-desc");
+    var desc = new Paragraph(t.getDescription()); desc.addClassName("bjj-desc");
     body.add(desc);
 
-    var actions = new Div();
-    actions.addClassName("bjj-actions");
+    var actions = new Div(); actions.addClassName("bjj-actions");
+    actions.add(learnedBtn);
     if (t.getVideoUrl()!=null && !t.getVideoUrl().isBlank()){
       var a = new Anchor(t.getVideoUrl(), "Watch video");
-      a.setTarget("_blank");
-      a.getElement().setAttribute("rel","noopener noreferrer");
-      a.addClassName("bjj-btn");
-      actions.add(a);
+      a.setTarget("_blank"); a.getElement().setAttribute("rel","noopener noreferrer");
+      a.addClassName("bjj-btn"); actions.add(a);
     }
     body.add(actions);
 
+    if (learned.contains(t.getId())) card.addClassName("is-learned");
+
     card.add(thumb, body);
     cards.add(card);
+  }
+
+  private void setLearnedIcon(Button btn, boolean isLearned){
+    btn.setIcon(isLearned ? VaadinIcon.CHECK_SQUARE.create() : VaadinIcon.SQUARE_SHADOW.create());
+    btn.getElement().setProperty("title", isLearned ? "Marked learned (click to unmark)" : "Mark as learned");
+    btn.getStyle().set("border","1px solid #2b3b56");
+    btn.getStyle().set("background","#0b1220");
+    btn.getStyle().set("color", isLearned ? "#6fe28a" : "#b2c4da");
+    btn.getStyle().set("padding","4px 8px");
+    btn.getStyle().set("borderRadius","8px");
+  }
+
+  private void toggleLearned(Long id){
+    if (id == null) return;
+    if (learned.contains(id)) learned.remove(id); else learned.add(id);
+    if (consentGiven) saveLearnedCookie();
+  }
+
+  private void saveLearnedCookie(){
+    String value = learned.stream().map(String::valueOf).collect(Collectors.joining(","));
+    setCookie(LEARNED_COOKIE, value, 60*60*24*365*5);
+  }
+
+  private void loadLearnedFromCookie(){
+    UI.getCurrent().getPage().executeJs(
+      "const m=document.cookie.match(/(?:^|; )"+LEARNED_COOKIE+"=([^;]*)/); return m?decodeURIComponent(m[1]):'';")
+      .then(String.class, cookieVal -> {
+        learned.clear();
+        if (cookieVal != null && !cookieVal.isBlank()){
+          for (String s : cookieVal.split(",")) {
+            try { learned.add(Long.parseLong(s.trim())); } catch (Exception ignored) {}
+          }
+        }
+        refresh();
+      });
+  }
+
+  private void injectMinimalCss(){
+    UI.getCurrent().getPage().executeJs("""
+      (function(){
+        const css = `
+          .bjj-card.is-learned { outline: 2px solid #2e824a; box-shadow: 0 0 0 2px #2e824a22 inset; }
+          .bjj-learned-btn { margin-right: 8px; }
+          .bjj-cookiebar {
+            position: fixed; left: 16px; right: 16px; bottom: 16px;
+            z-index: 2000; display: flex; align-items: center;
+            gap: 12px; padding: 12px 16px;
+            background: #0b1220; border: 1px solid #2b3b56; border-radius: 10px;
+            box-shadow: 0 8px 30px #0006;
+          }
+          .bjj-context-group vaadin-radio-button::part(label) { color: #c0d0e6; }
+        `;
+        const s=document.createElement('style'); s.textContent=css; document.head.appendChild(s);
+      })();
+    """);
+  }
+
+  private Div beltBadge(Belt b){
+    var s = badge(capitalize(formatEnum(b.name())) + " belt", true);
+    s.getStyle().set("borderColor", beltHex(b));
+    s.getStyle().set("color", beltHex(b));
+    s.getStyle().set("background", "#0c1422");
+    return s;
+  }
+
+  private static String beltHex(Belt b){
+    if (b == null) return "#b2c4da";
+    switch (b){
+      case WHITE:  return "#e5e7eb";
+      case BLUE:   return "#60a5fa";
+      case PURPLE: return "#a78bfa";
+      case BROWN:  return "#c08457";
+      case BLACK:  return "#111827";
+      default:     return "#b2c4da";
+    }
   }
 
   private Div badge(String text, boolean small){
@@ -326,12 +488,20 @@ public class MainView extends VerticalLayout {
     position.clear();
     categories.clear();
     belt.clear();
-    giOnly.setValue(false);
-    nogiOnly.setValue(false);
+    context.setValue("Any");
     sort.setValue("relevance");
     search.clear();
-    // unselect visual chips
     chipsWrap.getChildren().forEach(c -> c.getElement().getClassList().remove("active"));
     refresh();
+  }
+
+  /* ---------- tiny non-editable select utility for sort ---------- */
+  private static class ComboBoxLike extends Select<String> {
+    ComboBoxLike(){
+      setEmptySelectionAllowed(false);
+      setRenderer(new ComponentRenderer<>(txt -> {
+        var d = new Div(); d.setText(txt); return d;
+      }));
+    }
   }
 }

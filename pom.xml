@@ -1,0 +1,116 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Používáme parent Spring Boot, který nastaví defaulty -->
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.2</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.example</groupId>
+  <artifactId>bjj-tech-map</artifactId>
+  <version>1.0.0</version>
+  <name>BJJ Tech Map</name>
+  <description>BJJ Techniques map with Spring Boot + Vaadin</description>
+
+  <distributionManagement>
+  <repository>
+    <id>repsy</id>
+    <name>My Private Maven Repository on Repsy</name>
+    <url>https://repo.repsy.io/mvn/user26770181/maven</url>
+  </repository>
+  <!-- Optional, if you deploy SNAPSHOTs too:
+  <snapshotRepository>
+    <id>repsy</id>
+    <name>Repsy Snapshots</name>
+    <url>https://repo.repsy.io/mvn/user26770181/maven</url>
+  </snapshotRepository>
+  -->
+</distributionManagement>
+
+  <properties>
+    <!-- Java verze -->
+    <java.version>17</java.version>
+    <!-- Vaadin verze -->
+    <vaadin.version>24.4.5</vaadin.version>
+  </properties>
+
+  <dependencies>
+    <!-- Vaadin frontend -->
+    <dependency>
+      <groupId>com.vaadin</groupId>
+      <artifactId>vaadin-spring-boot-starter</artifactId>
+      <version>${vaadin.version}</version>
+    </dependency>
+      
+    <dependency>
+        <groupId>com.vaadin</groupId>
+        <artifactId>vaadin-lumo-theme</artifactId>
+        <version>${vaadin.version}</version>
+    </dependency>
+
+    <!-- Spring Boot JPA + Web -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- H2 in-memory databáze -->
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- Lombok (pro getters/setters/builder) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.34</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Test -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!-- Kompilátor s podporou Lomboku -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>${java.version}</release>
+          <encoding>UTF-8</encoding>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>1.18.34</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+
+      <!-- Spring Boot plugin pro spuštění -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>

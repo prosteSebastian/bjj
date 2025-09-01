@@ -1,0 +1,14 @@
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/BjjTechMapApplication.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/api/TechniqueController.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/config/DataLoader.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/model/Belt.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/model/Category.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/model/Position.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/model/Ruleset.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/model/Technique.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/repo/TechniqueRepository.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/service/JsonTechniqueService.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/service/TechniqueService.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/service/TechniqueSpecs.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/ui/AppShell.java
+/home/seba/bjj-tech-map/src/main/java/com/example/bjj/ui/MainView.java

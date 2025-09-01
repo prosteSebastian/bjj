@@ -1,0 +1,16 @@
+com/example/bjj/model/Belt.class
+com/example/bjj/model/Ruleset.class
+com/example/bjj/config/DataLoader.class
+com/example/bjj/ui/AppShell.class
+com/example/bjj/service/JsonTechniqueService$1.class
+com/example/bjj/model/Technique$TechniqueBuilder.class
+com/example/bjj/service/TechniqueSpecs.class
+com/example/bjj/service/TechniqueService.class
+com/example/bjj/api/TechniqueController.class
+com/example/bjj/ui/MainView.class
+com/example/bjj/model/Category.class
+com/example/bjj/repo/TechniqueRepository.class
+com/example/bjj/model/Position.class
+com/example/bjj/model/Technique.class
+com/example/bjj/service/JsonTechniqueService.class
+com/example/bjj/BjjTechMapApplication.class

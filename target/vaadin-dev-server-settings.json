@@ -1,0 +1,17 @@
+{
+  "frontendFolder": "/home/seba/bjj-tech-map/./src/main/frontend",
+  "themeFolder": "themes",
+  "themeResourceFolder": "/home/seba/bjj-tech-map/./src/main/frontend/generated/jar-resources",
+  "staticOutput": "/home/seba/bjj-tech-map/target/classes/META-INF/VAADIN/webapp/VAADIN/static",
+  "generatedFolder": "generated",
+  "statsOutput": "/home/seba/bjj-tech-map/target/classes/META-INF/VAADIN/config",
+  "frontendBundleOutput": "/home/seba/bjj-tech-map/target/classes/META-INF/VAADIN/webapp",
+  "devBundleOutput": "/home/seba/bjj-tech-map/target/dev-bundle/webapp",
+  "devBundleStatsOutput": "/home/seba/bjj-tech-map/target/dev-bundle/config",
+  "jarResourcesFolder": "/home/seba/bjj-tech-map/./src/main/frontend/generated/jar-resources",
+  "themeName": "bjj",
+  "clientServiceWorkerSource": "/home/seba/bjj-tech-map/target/sw.ts",
+  "pwaEnabled": false,
+  "offlineEnabled": false,
+  "offlinePath": "'offline.html'"
+}
